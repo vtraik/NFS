@@ -1,0 +1,3 @@
+cancel /test1_nfs/config_source_dir@195.134.65.84:5556
+add /test1_nfs/added_source_dir@195.134.65.84:5556 /test1_nfs/added_target_dir@195.134.65.86:5557
+shutdown
