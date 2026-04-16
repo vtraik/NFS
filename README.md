@@ -1,95 +1,121 @@
-# NetworkFileSystem-NFS
+# Network File System (NFS)
 
-- **compile**: make all στο root directory.Τα εκτελέσιμα τρέχουν και αυτά από το root: 
-./bin/nfs_manager... ή ./bin/nfs_console... . Η σειρά εκτέλεσης είναι: client, manager, console.
+## Project Overview  
 
-- Τα modules (Mod*.cpp) περιέχουν συναρτήσεις init,destroy για τις οντότητες manager,
-console και άλλες που ρυθμίζουν το αρχικό connection και τους handlers. 
+This project implements a Network File System (NFS) for real-time file synchronization between remote systems. It utilizes low-level socket programming, multi-threading with a worker thread pool, and synchronization primitives like condition variables to manage file transfers between source and target directories hosted on different machines.
 
-- Τα log/config πηγαίνουν στο log directory (σύμβαση, μπορούν και αλλού απλά για να υπάρχει μια οργάνωση το έχω).
+---
 
-- Όλα τα fd's είναι blocking (sockets/files).
+## Architecture
 
-- Όλη η επικοινωνία με sockets γίνεται μέσω μηνυμάτων (read_message/write message).
-Ένα μήνυμα αποτελείται από το prefix (που δηλώνει το μέγεθός του) και το data μέρος
-(το ίδιο το μήνυμα).
-Οι εντολές LIST,PULL,PUSH στέλνονται ως: 
-Έστω message(X) := X r/w με prefix, data(X) := X r/w με chunk
-- message(List dir) και η απάντηση: message(file + \n) , message(.) για signal τέλους.
-- message(PULL file) και η απάντηση: message(filesize + " ") , data(file.data).
-- message(PUSH file chunck_size) και data(file.data).
+```mermaid
+graph TD
+    User((User)) -->|add, cancel, shutdown| Console[nfs_console]
+    
+    Console -->|add, cancel, shutdown| Manager[nfs_manager]
+    Console --> ConsoleLog[console_log_file]
 
-- Όποτε κάποιος γράφει πάνω σε socket και πρέπει να κλείσει η σύνδεση μετά, πριν την close
-στέλνει shutdown(fd,SHUT_WR).
+    Config[config_file] --> Manager
+    Manager --> ManagerLog[manager_log_file]
 
-- Άδεια dirs δεν συγχρονίζονται.
+    Manager <--> Client1[nfs_client]
+    Manager <--> Client2[nfs_client]
+    Manager <--> Client3[...]
+    Manager <--> Client4[nfs_client]
 
-- Utils: περιέχονται οι συναρτήσεις για read/write καθώς και άλλες χρήσιμες (για την
-επικοινωνία μέσω socket, για parsing κτλ). 
+    style User fill:#343b58,stroke:#7aa2f7,color:#7aa2f7,stroke-width:2px
+    style Console fill:#1a1b26,stroke:#bb9af7,color:#bb9af7,stroke-width:2px
+    style Manager fill:#1a1b26,stroke:#7dcfff,color:#7dcfff,stroke-width:2px
+    style Client1 fill:#24283b,stroke:#9ece6a,color:#9ece6a,stroke-width:2px
+    style Client2 fill:#24283b,stroke:#9ece6a,color:#9ece6a,stroke-width:2px
+    style Client4 fill:#24283b,stroke:#9ece6a,color:#9ece6a,stroke-width:2px
+    style Client3 fill:none,stroke:none,color:#565f89
+    style ConsoleLog fill:#16161e,stroke:#f7768e,color:#f7768e,stroke-dasharray: 5 5
+    style ManagerLog fill:#16161e,stroke:#f7768e,color:#f7768e,stroke-dasharray: 5 5
+    style Config fill:#16161e,stroke:#e0af68,color:#e0af68,stroke-dasharray: 5 5
+```
 
-- Δομές: η ουρά μεγέθους buf_size και ένα map που φυλάει εγγραφές (όπως αυτές ορίζονται
-στο config file) και ελέγχει αν υπάρχει στην ουρά η εγγραφή στην add. Η κάθε εγγραφή έχει
-έναν counter που μετρά πόσες φορές υπάρχει στην ουρά (πχ για τον συγχρονισμό 
-/test@195.134.65.86:16420 /backup@127.0.0.1:16421 αρχικά θα είναι όσα είναι τα αρχεία του
-test directory, όταν βγαίνει κάποια δουλειά από τον buffer μειώνεται κτλ και αν γίνει 0
-βγαίνει τελείως από το map). Οι δομές είναι κοινές για όλα τα νήματα.
+---
 
-## NfsManager
-Μετά την αρχικοποίησή του και του thread pool καλεί τη config_files, η οποία αναλαμβάνει
-τον αρχικό συγχρονισμό όπως περιγράφεται στην εκφώνηση. Η list_command επικοινωνεί με
-τον client διαβάζοντας τα αρχεία του dircetory και τα βάζει στην ουρά. Έπειτα δημιουργείται
-το console thread που θα αναλάβει την επικοινωνία με το console. Το main thread περιμένει
-να κάνει join με αυτό όταν τερματίσει σε shutdown.
+## Implementation & Design Choices
 
-### Console thread (handle_console)
-Διαβάζει τις εντολές του console και καλεί την αντίστοιχη συνάρτηση.
-- add: Ψάχνει στο map Jobs_record αν υπάρχει η εγγραφή. Αν δεν υπάρχει
-καλεί την list_command για να ξεκινήσει τον συγχρονισμό του dir.
-- cancel: Ψάχνει για entry όπως: /testadd@195.134.65.86:16420 στην ουρά
-Jobs και τα διαγράφει, όπως και από το map Jobs_record. Αν βρει πολλά
-κάνει broadcast στο cond_var που κοιμούνται οι workers, αλλιώς signal ή
-τίποτα.
-- shutdown: Κάνει τη global μεταβλητή exit_nfs = true και ξυπνά όσα worker threads
-κοιμούνται και περιμένει να τα κάνει join, κάνει destroy τα mutexes και cond_var
-και κάνει exit ώστε να επιστρέψει η join του main thread.
+### 1. Networking & Communication Protocol
+* **Socket Messaging**: All communication is performed over blocking sockets using a custom messaging protocol. Messages consist of a prefix indicating the size, followed by the data payload.
+* **Protocol Commands**:
+    * `LIST <dir>`: Requests a file list from an `nfs_client`.
+    * `PULL <path>`: Downloads file content from a source.
+    * `PUSH <path> <chunk_size> <data>`: Uploads data chunks to a target.
+* **Connection Management**: To ensure clean termination, `shutdown(fd, SHUT_WR)` is called before closing sockets when a sender finishes writing.
 
+### 2. nfs_manager
+* **Thread Pool**: Upon startup, the manager creates a pool of worker threads to handle file synchronization tasks concurrently.
+* **Config File**: Upon startup, the manager reads from a config file a list of dir pairs (source and dest).
+* **Task Management**: A shared buffer (size set via `-b`) stores synchronization requests. Access is synchronized using condition variables.
+* **Job Tracking**: An internal map (`Jobs_record`) tracks active synchronization tasks to prevent duplicate entries if an `add` command is issued for an existing pair.
+* **Console Thread**: A dedicated thread (`handle_console`) manages asynchronous commands from the `nfs_console`.
 
-### Worker threads (worker)
-Γίνεται ο συγχρονισμός με τους απαραίτητους ελέγχους και στο τέλος γράφεται η εγγραφή ή 
-το error στο logfile που προστατεύεται από mutex. Αν υπάρξει error κλείνει και η σύνδεση
-ομαλά (καλώντας shutdown πριν το close). Ο συγχρονισμός βασίζεται στο μέγεθος της ουράς,
-όπως και αν έχει ζητηθεί ο τερματισμός της εφαρμογής από το console. 
+### 3. nfs_client
+* **Multi-threaded Serving**: The client spawns a new thread for every incoming request to allow concurrent file operations.
+* **Directory Synchronization**: Implements a reader-writer lock mechanism per directory to allow multiple concurrent readers but exclusive access for writers. 
+* **Memory Management**: Directory locks are stored in a map using a combined key of `dev_t` and `ino_t`. A cleanup thread removes unused locks from the map when it exceeds 1000 entries.
+* **Relative Paths**: All file operations are relative to the directory where the `nfs_client` is executed.
+* **Graceful Shutdown**: Can be gracefully terminated with SIGINT (Ctrl+C).
 
-## NfsClient
-**Παραδοχή για τον συγχρονισμό**: Δεν υπάρχουν ταυτόχρονα 2 writes στο ίδιο αρχείο.
+### 4. nfs_console
+* **User Interface**: Parses user input and forwards commands to the `nfs_manager`.
+* **Response Handling**: It is responsible for displaying the manager's status messages to the user and logging them locally.
 
-- Για κάθε request φτιάχνεται ένα thread.
-- ανοίγει relative paths (./dir) αν υπάρχουν.
+---
 
-Συγχρονισμός: read ή write lock ανά dir. Οι αντίστοιχες συναρτήσεις get_dir_lock,
-start/end reading/writing υλοποιούν τον συγχρονισμό αυτό (πολλαπλοί readers ή writers
-ανά dir). Για να μπορώ να ελέγχω το lifetime ενός reference του map τα values του είναι
-shared_ptr<dir_lock>. Έτσι κάθε thread παίρνει έναν shared_ptr για να κάνει το operation
-που θέλει και όταν τελειώσει το απελευθερώνει. Όταν ένα dir_lock έχει ref count == 1,
-σημαίνει ότι δεν χρησιμοποείται (υπάρχει μόνο στο map). Ένα cleanup thread είναι υπεύθυνο
-να καθαρίζει αυτές τις εγγραφές από το map όταν το size του ξεπερνά τις 1000 εγγραφές
-(για να μην κάνω allocate συνεχώς καινούργια μνήμη).
+## Compilation
+```bash
+make all
+```
+This produces three executables in the `./bin/` directory: `nfs_manager`, `nfs_client`, and `nfs_console`.
 
-Δομή: ένα map που φυλάει τα dirs και τα lock τους. Το key του map είναι ο συνδυασμός
-του dev_t + ino_t που επιστρέφει η stat. Επειδή χρειαζόταν να γίνουν combine τα δύο
-keys χρησιμοποίησα τον τρόπο που το κάνει η boost library (η οποία δεν υπάρχει στα linux
-οπότε βρήκα πώς κάνουν το combine για καλές στατιστικές ιδιότητες).
+---
 
-- PUSH: αν δεν διαβαστεί PUSH file 0 κάνει unlink το αρχείο (failed operation).
+## Execution Instructions
+**Note**: Programs should be started in the following order: `nfs_client`, `nfs_manager`, `nfs_console`.
 
-Ο client μπορεί να τερματίσει ομαλά μέσω του σήματος SIGINT. Για να επιτευχθεί αυτό,
-ο handler κάνει set το flag exit_client σε 1 κάνει break από το accept loop και περιμένει
-τους active workers να τερματίσουν (cur_worker == 0) και να επιστρέψει το cleanup thread.
+### 1. nfs_client
+```bash
+./bin/nfs_client -p <port_number>
+```
+* `-p`: Port to listen for manager requests.
 
-## NfsConsole
-Μετά την αρχικοποίηση, διαβάζει ένα command μέσω της getline και περιμένει το response.
-- handle_input: Κάνει parse το input command και το στέλνει στον manager και γράφει στο
-console log file.
-- handle_response: Διαβάζει την απάντηση του manager. Αν είναι added ή shutting μπαίνει
-σε loop για να διαβάσει τα υπόλοιπα responses που πρέπει (σε αυτές τις περιπτώσεις ο
-manager στέλνει > 1 μηνύματα).
+### 2. nfs_manager
+```bash
+./bin/nfs_manager -l <logfile> -c <config_file> -n <worker_limit> -p <port> -b <bufferSize>
+```
+* `-l`: System log file.
+* `-c`: Configuration file with `source_dir@host_ip:port target_dir@host_ip:port` pairs.
+* `-n`: Max concurrent worker threads (default: 5).
+* `-p`: Port for console communication.
+* `-b`: Size of the task buffer.
+
+### 3. nfs_console
+```bash
+./bin/nfs_console -l <console-logfile> -h <manager_IP> -p <manager_port>
+```
+* `-l`: Console-specific log file.
+* `-h`: IP address of the manager.
+* `-p`: Port the manager is listening on.
+
+---
+
+## Console Commands
+* `add <source> <target>`: Registers a new directory pair for synchronization.
+* `cancel <source>`: Cancels pending synchronization tasks for the specified source.
+* `shutdown`: Gracefully terminates the manager after finishing queued tasks.
+
+---
+
+## Logging Formats
+* **Manager Log**: `[TIMESTAMP] [SOURCE DIR] [TARGET DIR] [THREAD PID] [OPERATION] [RESULT] [DETAILS]`.
+* **Console Log**: Records user-issued commands and manager responses.
+
+## Notes
+* **Flat Directories**: The system assumes no subdirectories are present.
+* **Empty Directories**: Empty directories are not synced.
+* **Log Cleanup**: Log files are cleared at program startup to ensure fresh logging per session.
