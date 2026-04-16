@@ -1,8 +1,42 @@
 # Network File System (NFS)
 
-## Project Overview
+## Project Overview  
 
 This project implements a Network File System (NFS) for real-time file synchronization between remote systems. It utilizes low-level socket programming, multi-threading with a worker thread pool, and synchronization primitives like condition variables to manage file transfers between source and target directories hosted on different machines.
+
+---
+
+## Architecture
+
+```mermaid
+graph TD
+    User((User)) -->|add, cancel, shutdown| Console[nfs_console]
+    
+    Console -->|add, cancel, shutdown| Manager[nfs_manager]
+    Console --> ConsoleLog[console_log_file]
+
+    Config[config_file] --> Manager
+    Manager --> ManagerLog[manager_log_file]
+
+    Manager <--> Client1[nfs_client]
+    Manager <--> Client2[nfs_client]
+    Manager <--> Client3[...]
+    Manager <--> Client4[nfs_client]
+
+    %% Styling to match the visual look of the diagram
+    style User fill:#fff,stroke:#000
+    style Console fill:#f2f2f2,stroke:#000
+    style Manager fill:#f2f2f2,stroke:#000
+    style Client1 fill:#f2f2f2,stroke:#000
+    style Client2 fill:#f2f2f2,stroke:#000
+    style Client3 fill:none,stroke:none
+    style Client4 fill:#f2f2f2,stroke:#000
+    style ConsoleLog fill:#eee,stroke:#999,stroke-dasharray: 5 5
+    style ManagerLog fill:#eee,stroke:#999,stroke-dasharray: 5 5
+    style Config fill:#eee,stroke:#999,stroke-dasharray: 5 5
+```
+
+---
 
 ## Implementation & Design Choices
 
@@ -85,33 +119,3 @@ This produces three executables in the `./bin/` directory: `nfs_manager`, `nfs_c
 * **Flat Directories**: The system assumes no subdirectories are present.
 * **Empty Directories**: Empty directories are not synced.
 * **Log Cleanup**: Log files are cleared at program startup to ensure fresh logging per session.
-
-## Architecture
-
-```mermaid
-graph TD
-    User((User)) -->|add, cancel, shutdown| Console[nfs_console]
-    
-    Console -->|add, cancel, shutdown| Manager[nfs_manager]
-    Console --> ConsoleLog[console_log_file]
-
-    Config[config_file] --> Manager
-    Manager --> ManagerLog[manager_log_file]
-
-    Manager <--> Client1[nfs_client]
-    Manager <--> Client2[nfs_client]
-    Manager <--> Client3[...]
-    Manager <--> Client4[nfs_client]
-
-    %% Styling to match the visual look of the diagram
-    style User fill:#fff,stroke:#000
-    style Console fill:#f2f2f2,stroke:#000
-    style Manager fill:#f2f2f2,stroke:#000
-    style Client1 fill:#f2f2f2,stroke:#000
-    style Client2 fill:#f2f2f2,stroke:#000
-    style Client3 fill:none,stroke:none
-    style Client4 fill:#f2f2f2,stroke:#000
-    style ConsoleLog fill:#eee,stroke:#999,stroke-dasharray: 5 5
-    style ManagerLog fill:#eee,stroke:#999,stroke-dasharray: 5 5
-    style Config fill:#eee,stroke:#999,stroke-dasharray: 5 5
-```
