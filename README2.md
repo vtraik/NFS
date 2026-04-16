@@ -90,29 +90,28 @@ This produces three executables in the `./bin/` directory: `nfs_manager`, `nfs_c
 
 ```mermaid
 graph TD
-    User((User)) -->|Commands: add, cancel, shutdown| Console[nfs_console]
+    User((User)) -->|add, cancel, shutdown| Console[nfs_console]
     
-    subgraph "Manager Machine"
-        Console -->|Socket Connection| Manager[nfs_manager]
-        Config[(config_file)] -->|Initial Pairs| Manager
-        Manager -.->|Logging| MLog[manager_log_file]
-        
-        subgraph "nfs_manager Internals"
-            Manager -->|Sync Tasks| Queue[Task Buffer/Queue]
-            Queue -->|Condition Variables| Workers{Worker Thread Pool}
-        end
-    end
+    Console -->|add, cancel, shutdown| Manager[nfs_manager]
+    Console --> ConsoleLog[console_log_file]
 
-    Console -.->|Logging| CLog[console_log_file]
+    Config[config_file] --> Manager
+    Manager --> ManagerLog[manager_log_file]
 
-    subgraph "Remote Clients"
-        Workers -->|LIST / PULL Commands| ClientSource[nfs_client Source]
-        Workers -->|PUSH Commands| ClientTarget[nfs_client Target]
-        
-        ClientSource -->|File Data| Workers
-    end
+    Manager <--> Client1[nfs_client]
+    Manager <--> Client2[nfs_client]
+    Manager <--> Client3[...]
+    Manager <--> Client4[nfs_client]
 
-    style Manager fill:#f9f,stroke:#333,stroke-width:2px
-    style Console fill:#bbf,stroke:#333,stroke-width:2px
-    style Workers fill:#dfd,stroke:#333,stroke-width:2px
+    %% Styling to match the visual look of the diagram
+    style User fill:#fff,stroke:#000
+    style Console fill:#f2f2f2,stroke:#000
+    style Manager fill:#f2f2f2,stroke:#000
+    style Client1 fill:#f2f2f2,stroke:#000
+    style Client2 fill:#f2f2f2,stroke:#000
+    style Client3 fill:none,stroke:none
+    style Client4 fill:#f2f2f2,stroke:#000
+    style ConsoleLog fill:#eee,stroke:#999,stroke-dasharray: 5 5
+    style ManagerLog fill:#eee,stroke:#999,stroke-dasharray: 5 5
+    style Config fill:#eee,stroke:#999,stroke-dasharray: 5 5
 ```
