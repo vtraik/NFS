@@ -88,6 +88,7 @@ This produces three executables in the `./bin/` directory: `nfs_manager`, `nfs_c
 
 ## Architecture
 
+```mermaid
 graph TD
     User((User)) -->|Commands: add, cancel, shutdown| Console[nfs_console]
     
@@ -114,3 +115,4 @@ graph TD
     style Manager fill:#f9f,stroke:#333,stroke-width:2px
     style Console fill:#bbf,stroke:#333,stroke-width:2px
     style Workers fill:#dfd,stroke:#333,stroke-width:2px
+```
