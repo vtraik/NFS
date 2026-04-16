@@ -23,17 +23,16 @@ graph TD
     Manager <--> Client3[...]
     Manager <--> Client4[nfs_client]
 
-    %% Styling to match the visual look of the diagram
-    style User fill:#fff,stroke:#000
-    style Console fill:#f2f2f2,stroke:#000
-    style Manager fill:#f2f2f2,stroke:#000
-    style Client1 fill:#f2f2f2,stroke:#000
-    style Client2 fill:#f2f2f2,stroke:#000
-    style Client3 fill:none,stroke:none
-    style Client4 fill:#f2f2f2,stroke:#000
-    style ConsoleLog fill:#eee,stroke:#999,stroke-dasharray: 5 5
-    style ManagerLog fill:#eee,stroke:#999,stroke-dasharray: 5 5
-    style Config fill:#eee,stroke:#999,stroke-dasharray: 5 5
+    style User fill:#343b58,stroke:#7aa2f7,color:#7aa2f7,stroke-width:2px
+    style Console fill:#1a1b26,stroke:#bb9af7,color:#bb9af7,stroke-width:2px
+    style Manager fill:#1a1b26,stroke:#7dcfff,color:#7dcfff,stroke-width:2px
+    style Client1 fill:#24283b,stroke:#9ece6a,color:#9ece6a,stroke-width:2px
+    style Client2 fill:#24283b,stroke:#9ece6a,color:#9ece6a,stroke-width:2px
+    style Client4 fill:#24283b,stroke:#9ece6a,color:#9ece6a,stroke-width:2px
+    style Client3 fill:none,stroke:none,color:#565f89
+    style ConsoleLog fill:#16161e,stroke:#f7768e,color:#f7768e,stroke-dasharray: 5 5
+    style ManagerLog fill:#16161e,stroke:#f7768e,color:#f7768e,stroke-dasharray: 5 5
+    style Config fill:#16161e,stroke:#e0af68,color:#e0af68,stroke-dasharray: 5 5
 ```
 
 ---
